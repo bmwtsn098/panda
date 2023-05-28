@@ -44,6 +44,16 @@ AddrCheckStruct honda_common_addr_checks[] = {
 };
 #define HONDA_COMMON_ADDR_CHECKS_LEN (sizeof(honda_common_addr_checks) / sizeof(honda_common_addr_checks[0]))
 
+// Nidec and bosch radarless has the powertrain bus on bus 0
+AddrCheckStruct honda_common_addr_checks_integra[] = {
+  {.msg = {{0x1A6, 0, 8, .check_checksum = true, .max_counter = 3U, .expected_timestep = 40000U},                   // SCM_BUTTONS
+           {0x296, 0, 4, .check_checksum = true, .max_counter = 3U, .expected_timestep = 40000U}, { 0 }}},
+  {.msg = {{0x17C, 0, 8, .check_checksum = true, .max_counter = 3U, .expected_timestep = 10000U},                   // POWERTRAIN_DATA
+           {0x1BE, 0, 3, .check_checksum = true, .max_counter = 3U, .expected_timestep = 20000U}, { 0 }}},          // BRAKE_MODULE (for bosch radarless)
+  {.msg = {{0x326, 0, 8, .check_checksum = true, .max_counter = 3U, .expected_timestep = 100000U}, { 0 }, { 0 }}},  // SCM_FEEDBACK
+};
+#define HONDA_COMMON_ADDR_CHECKS_INTEGRA_LEN (sizeof(honda_common_addr_checks_integra) / sizeof(honda_common_addr_checks_integra[0]))
+
 // For Nidecs with main on signal on an alternate msg
 AddrCheckStruct honda_nidec_alt_addr_checks[] = {
   {.msg = {{0x1A6, 0, 8, .check_checksum = true, .max_counter = 3U, .expected_timestep = 40000U},
@@ -67,6 +77,7 @@ const uint16_t HONDA_PARAM_ALT_BRAKE = 1;
 const uint16_t HONDA_PARAM_BOSCH_LONG = 2;
 const uint16_t HONDA_PARAM_NIDEC_ALT = 4;
 const uint16_t HONDA_PARAM_RADARLESS = 8;
+const uint16_t HONDA_PARAM_RADARLESS_INTEGRA = 16;
 
 enum {
   HONDA_BTN_NONE = 0,
@@ -82,6 +93,7 @@ bool honda_alt_brake_msg = false;
 bool honda_fwd_brake = false;
 bool honda_bosch_long = false;
 bool honda_bosch_radarless = false;
+bool honda_bosch_radarless_integra = false;
 enum {HONDA_NIDEC, HONDA_BOSCH} honda_hw = HONDA_NIDEC;
 addr_checks honda_rx_checks = {honda_common_addr_checks, HONDA_COMMON_ADDR_CHECKS_LEN};
 
@@ -396,6 +408,7 @@ static const addr_checks* honda_nidec_init(uint16_t param) {
 static const addr_checks* honda_bosch_init(uint16_t param) {
   honda_hw = HONDA_BOSCH;
   honda_bosch_radarless = GET_FLAG(param, HONDA_PARAM_RADARLESS);
+  honda_bosch_radarless_integra = GET_FLAG(param, HONDA_PARAM_RADARLESS_INTEGRA);
   // Checking for alternate brake override from safety parameter
   honda_alt_brake_msg = GET_FLAG(param, HONDA_PARAM_ALT_BRAKE);
 
@@ -404,7 +417,9 @@ static const addr_checks* honda_bosch_init(uint16_t param) {
   honda_bosch_long = GET_FLAG(param, HONDA_PARAM_BOSCH_LONG);
 #endif
 
-  if (honda_bosch_radarless) {
+  if (honda_bosch_radarless_integra) {
+    honda_rx_checks = (addr_checks){honda_common_addr_checks_integra, HONDA_COMMON_ADDR_CHECKS_INTEGRA_LEN};
+  } else if (honda_bosch_radarless) {
     honda_rx_checks = (addr_checks){honda_common_addr_checks, HONDA_COMMON_ADDR_CHECKS_LEN};
   } else {
     honda_rx_checks = (addr_checks){honda_bosch_addr_checks, HONDA_BOSCH_ADDR_CHECKS_LEN};
